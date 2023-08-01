@@ -24,14 +24,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.kointutorial.startingcoroutine.ui.theme.StartingCoroutineTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import java.lang.Exception
-import java.lang.NullPointerException
 
 class MainActivity : ComponentActivity() {
     private val TAG = "MAIN ACTIVITY"
@@ -43,8 +41,7 @@ class MainActivity : ComponentActivity() {
             StartingCoroutineTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
                 ) {
                     DisplayCount()
                 }
@@ -52,6 +49,7 @@ class MainActivity : ComponentActivity() {
         }
 
         observeViewModelData()
+        //printDifferentCoroutineContext()
     }
 
     private fun observeViewModelData() {
@@ -78,11 +76,123 @@ class MainActivity : ComponentActivity() {
 
     private fun showToast(message: String) {
         Toast.makeText(
-            this,
-            message,
-            Toast.LENGTH_SHORT
+            this, message, Toast.LENGTH_SHORT
         ).show()
     }
+
+    /**
+     *  Demo 1
+     *  1) Like thread, Coroutines can run in parallel
+     */
+    private fun launchTwoCoroutineInParallel() {
+
+        lifecycleScope.launch {
+            println("Started in ${Thread.currentThread().name}")
+
+            var result1 = GlobalScope.async {
+                delay(2000)
+                println("1 Running in ${Thread.currentThread().name}")
+                "Hello"
+            }
+
+            var result2 = GlobalScope.async {
+                delay(3000)
+                println(" 2 Running in ${Thread.currentThread().name}")
+                "world"
+            }
+
+            println("${result1.await()} ${result2.await()}")
+            println("End in ${Thread.currentThread().name}")
+        }
+    }
+
+
+    /**
+     * Demo 2
+     *
+     * Coroutine that inherit thread and scope from its parent with Unconfined Dispatcher, will continue in same thread as parent.
+     * But after the coroutine being suspended and resumed it may not continue in same thread as it started
+     */
+    private fun launchCoroutineWithLocalScope() = runBlocking {
+
+        println("Started in ${Thread.currentThread().name}")
+
+        launch(Dispatchers.Unconfined) {
+            println("1, Started  in ${Thread.currentThread().name}")
+
+            delay(200)
+            println("1, Ending in ${Thread.currentThread().name}")
+        }
+
+        //delay(2000)
+        for (i in 0..1000) {
+
+        }
+        println("End in ${Thread.currentThread().name}")
+    }
+
+    /**
+     * Demo 3
+     *
+     * Print Different Coroutine Scope
+     */
+
+    private fun printDifferentCoroutineScope() = runBlocking {
+
+        println("RunBlocking $this")
+
+        launch {
+            println("Launch $this")
+        }
+
+        async {
+            println("Async $this")
+        }
+    }
+
+    /**
+     * Demo 4
+     *
+     * Print Different Coroutine Context
+     */
+
+    private fun printDifferentCoroutineContext() = runBlocking {
+
+        println("RunBlocking $coroutineContext")
+
+        launch(coroutineContext) {
+            println("Launch $coroutineContext")
+        }
+
+        async {
+            println("Async $coroutineContext")
+        }
+
+        launch(Dispatchers.IO) {
+            println("Launch with changed Coroutine Context $coroutineContext")
+
+            async {
+                println("Async with inherited Coroutine context $coroutineContext")
+            }
+        }
+    }
+
+    private fun launchThread() {
+
+        println("Started in ${Thread.currentThread().name}")
+
+        Thread(Runnable {
+            println(" 1 Running in ${Thread.currentThread().name}")
+        }).start()
+
+
+        Thread(Runnable {
+            println(" 2 Running in ${Thread.currentThread().name}")
+        }).start()
+
+        println("Started in ${Thread.currentThread().name}")
+    }
+
 
 }
 
@@ -102,8 +212,7 @@ fun DisplayCount(modifier: Modifier = Modifier, viewModel: MainViewModel = viewM
     Column() {
 
         Text(
-            text = "Hello ${count.value}!",
-            modifier = modifier
+            text = "Hello ${count.value}!", modifier = modifier
         )
 
         ButtonToTriggerDataHolder(modifier = modifier,
@@ -118,7 +227,8 @@ fun DisplayCount(modifier: Modifier = Modifier, viewModel: MainViewModel = viewM
             buttonText = "Trgger Shared Flow",
             onClick = { viewModel.triggerSharedFlow() })
 
-        ButtonToTriggerDataHolder(modifier = modifier,
+        ButtonToTriggerDataHolder(
+            modifier = modifier,
             buttonText = "Trgger Flow",
             onClick = { viewModel.triggerFlow() })
     }
@@ -130,8 +240,7 @@ fun ButtonToTriggerDataHolder(modifier: Modifier, buttonText: String, onClick: (
 
     Button(onClick = onClick) {
         Text(
-            text = buttonText,
-            modifier = modifier
+            text = buttonText, modifier = modifier
         )
     }
 
