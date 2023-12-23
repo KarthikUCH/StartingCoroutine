@@ -27,7 +27,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -48,8 +52,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        observeViewModelData()
+        //observeViewModelData()
         //printDifferentCoroutineContext()
+        testFlowIntermidaterFlatMap()
     }
 
     private fun observeViewModelData() {
@@ -80,9 +85,13 @@ class MainActivity : ComponentActivity() {
         ).show()
     }
 
+    /***********************************************************************************************
+     ***********************************            COROUTINE        *******************************
+     ***********************************************************************************************/
+
     /**
-     *  Demo 1
-     *  1) Like thread, Coroutines can run in parallel
+     * Coroutine Demo 1
+     * 1) Like thread, Coroutines can run in parallel
      */
     private fun launchTwoCoroutineInParallel() {
 
@@ -108,7 +117,7 @@ class MainActivity : ComponentActivity() {
 
 
     /**
-     * Demo 2
+     * Coroutine Demo 2
      *
      * Coroutine that inherit thread and scope from its parent with Unconfined Dispatcher, will continue in same thread as parent.
      * But after the coroutine being suspended and resumed it may not continue in same thread as it started
@@ -132,7 +141,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Demo 3
+     * Coroutine Demo 3
      *
      * Print Different Coroutine Scope
      */
@@ -151,7 +160,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Demo 4
+     * Coroutine Demo 4
      *
      * Print Different Coroutine Context
      */
@@ -177,6 +186,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /***********************************************************************************************
+     ***********************************            THREAD           *******************************
+     ***********************************************************************************************/
+
     private fun launchThread() {
 
         println("Started in ${Thread.currentThread().name}")
@@ -191,6 +204,44 @@ class MainActivity : ComponentActivity() {
         }).start()
 
         println("Started in ${Thread.currentThread().name}")
+    }
+
+    /***********************************************************************************************
+     ***********************************              FLOW           *******************************
+     ***********************************************************************************************/
+
+    /**
+     * Flow Demo 1
+     * Intermediaries operators aren't executed until the values are consumed
+     *
+     * In below function resultFlow intermediate operation will be triggered 4 times since its been
+     * consumed 4 times
+     */
+    private fun testFlowIntermidaterFlatMap() {
+        val _trigger = MutableStateFlow(true)
+
+        /**
+         * Exposes result of this use case
+         */
+        val resultFlow = _trigger.flatMapLatest {
+            flowOf("Result")
+        }
+
+        lifecycleScope.launch {
+            resultFlow.collectLatest { }
+        }
+
+        lifecycleScope.launch {
+            resultFlow.collectLatest { }
+        }
+
+        lifecycleScope.launch {
+            resultFlow.collectLatest { }
+        }
+
+        lifecycleScope.launch {
+            resultFlow.collectLatest { }
+        }
     }
 
 
