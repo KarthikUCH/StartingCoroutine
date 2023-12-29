@@ -49,19 +49,27 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
                 ) {
-                    DisplayCount()
+                    DisplayCount(triggerColdFlow = this::triggerColdFlow)
                 }
             }
         }
 
         //observeViewModelData()
         //printDifferentCoroutineScope()
-        printDifferentCoroutineContext()
+        //printDifferentCoroutineContext()
         //testFlowIntermidaterFlatMap()
         //testLaunchCoroutineBuilder()
         //sequentialExecution()
         //concurrentExecution()
         //lazyExecution()
+    }
+
+    private fun triggerColdFlow() {
+        lifecycleScope.launch {
+            mainViewModel.triggerFlow().collectLatest {
+                println("Collecting cold flow value : $it")
+            }
+        }
     }
 
     private fun observeViewModelData() {
@@ -362,7 +370,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun DisplayCount(modifier: Modifier = Modifier, viewModel: MainViewModel = viewModel()) {
+fun DisplayCount(
+    modifier: Modifier = Modifier,
+    viewModel: MainViewModel = viewModel(),
+    triggerColdFlow: () -> Unit
+) {
     val count = viewModel.countState.collectAsState()
     Column() {
 
@@ -385,7 +397,9 @@ fun DisplayCount(modifier: Modifier = Modifier, viewModel: MainViewModel = viewM
         ButtonToTriggerDataHolder(
             modifier = modifier,
             buttonText = "Trgger Flow",
-            onClick = { viewModel.triggerFlow() })
+            onClick = {
+                triggerColdFlow()
+            })
     }
 }
 
@@ -405,7 +419,9 @@ fun ButtonToTriggerDataHolder(modifier: Modifier, buttonText: String, onClick: (
 @Composable
 fun GreetingPreview() {
     StartingCoroutineTheme {
-        DisplayCount()
+        DisplayCount(triggerColdFlow = {
+
+        })
     }
 
 }

@@ -49,6 +49,7 @@ class MainViewModel : ViewModel() {
     }
 
     fun triggerFlow(): Flow<String> = flow {
+        println("Flow runs in thread ${Thread.currentThread().name}")
         repeat(5) {
             emit("Time $it")
             delay(1000)
