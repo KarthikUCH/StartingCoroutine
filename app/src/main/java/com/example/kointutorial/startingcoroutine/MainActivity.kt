@@ -23,17 +23,19 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.kointutorial.startingcoroutine.ui.theme.StartingCoroutineTheme
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlin.system.measureTimeMillis
 
 class MainActivity : ComponentActivity() {
     private val TAG = "MAIN ACTIVITY"
@@ -53,8 +55,13 @@ class MainActivity : ComponentActivity() {
         }
 
         //observeViewModelData()
-        //printDifferentCoroutineContext()
-        testFlowIntermidaterFlatMap()
+        //printDifferentCoroutineScope()
+        printDifferentCoroutineContext()
+        //testFlowIntermidaterFlatMap()
+        //testLaunchCoroutineBuilder()
+        //sequentialExecution()
+        //concurrentExecution()
+        //lazyExecution()
     }
 
     private fun observeViewModelData() {
@@ -88,6 +95,32 @@ class MainActivity : ComponentActivity() {
     /***********************************************************************************************
      ***********************************            COROUTINE        *******************************
      ***********************************************************************************************/
+
+    /**
+     * Launch coroutine builder, just fire and forgot
+     */
+    private fun testLaunchCoroutineBuilder() {
+        GlobalScope.launch {
+            println("Outer Launch coroutine Start in ${Thread.currentThread().name}")
+            delay(2000)
+            launch {
+                println("1st Inner Launch coroutine in ${Thread.currentThread().name}")
+                delay(3000)
+
+                println(" *** 1st Inner Launch coroutine End in ${Thread.currentThread().name}")
+            }
+
+            launch {
+                println("2nd Inner Launch coroutine in ${Thread.currentThread().name}")
+                delay(7000)
+
+                println(" *** 2nd Inner Launch coroutine End in ${Thread.currentThread().name}")
+            }
+
+            println(" *** Outer Launch coroutine End in ${Thread.currentThread().name}")
+        }
+
+    }
 
     /**
      * Coroutine Demo 1
@@ -143,7 +176,9 @@ class MainActivity : ComponentActivity() {
     /**
      * Coroutine Demo 3
      *
-     * Print Different Coroutine Scope
+     * Print Different Coroutine Scope Instance
+     *  *Every coroutine has its own CoroutineScope instance attached to it
+     *  *Child CoroutineScope instance is independent on parent CoroutineScope instance
      */
 
     private fun printDifferentCoroutineScope() = runBlocking {
@@ -152,6 +187,10 @@ class MainActivity : ComponentActivity() {
 
         launch {
             println("Launch $this")
+
+            launch {
+                println("Launch Child $this")
+            }
         }
 
         async {
@@ -167,23 +206,98 @@ class MainActivity : ComponentActivity() {
 
     private fun printDifferentCoroutineContext() = runBlocking {
 
-        println("RunBlocking $coroutineContext")
+        println("RunBlocking $coroutineContext in Thread ${Thread.currentThread().name}")
+
+        launch(Dispatchers.Main) {
+            println("Launch Dispatchers.Default $coroutineContext in Thread ${Thread.currentThread().name}")
+        }
 
         launch(coroutineContext) {
-            println("Launch $coroutineContext")
+            println("Launch $coroutineContext in Thread ${Thread.currentThread().name}")
         }
 
         async {
-            println("Async $coroutineContext")
+            println("Async $coroutineContext in Thread ${Thread.currentThread().name}")
         }
 
         launch(Dispatchers.IO) {
-            println("Launch with changed Coroutine Context $coroutineContext")
+            println("Launch with changed Coroutine Context $coroutineContext in Thread ${Thread.currentThread().name}")
 
             async {
-                println("Async with inherited Coroutine context $coroutineContext")
+                println("Async with inherited Coroutine context $coroutineContext in Thread ${Thread.currentThread().name}")
             }
         }
+    }
+
+    /**
+     *  Coroutine Demo 5
+     *  Functions execution within a coroutine are sequential by default
+     */
+    private fun sequentialExecution() = runBlocking {
+
+        println("Execution starts in ${Thread.currentThread().name}")
+
+        val time = measureTimeMillis {
+            val msg1 = doNetworkCall()
+            val msg2 = doNetworkCall2()
+
+            println("The msg is $msg1 $msg2")
+        }
+
+        println("Total time taken is $time ms")
+        println("Execution ends in ${Thread.currentThread().name}")
+    }
+
+    /**
+     *  Coroutine Demo 6
+     *  To achieve concurrency within a coroutine,
+     *  you can use async or launch as child coroutine builders
+     */
+    private fun concurrentExecution() = runBlocking {
+
+        println("Execution starts in ${Thread.currentThread().name}")
+
+        val time = measureTimeMillis {
+            val msg1: Deferred<String> = async { doNetworkCall() }
+            val msg2: Deferred<String> = async { doNetworkCall2() }
+
+            println("The msg is ${msg1.await()} ${msg2.await()}")
+        }
+
+        println("Total time taken is $time ms")
+        println("Execution ends in ${Thread.currentThread().name}")
+    }
+
+    /**
+     *  Coroutine Demo 7
+     *  To execute a coroutine only when its result needed
+     */
+    private fun lazyExecution() = runBlocking {
+
+        println("Execution starts in ${Thread.currentThread().name}")
+
+
+        val msg1: Deferred<String> = async(start = CoroutineStart.LAZY) { doNetworkCall() }
+        val msg2: Deferred<String> = async(start = CoroutineStart.LAZY) { doNetworkCall2() }
+
+        // The above 2 coroutines wont get executed unless msg1.await() & msg2.await() get called
+        // TODO: Getting `A resource failed to call close` error, while commenting below line
+        println("The msg is ${msg1.await()} ${msg2.await()}")
+
+        println("Execution ends in ${Thread.currentThread().name}")
+    }
+
+
+    suspend fun doNetworkCall(): String {
+        println("Netwrok call 1 executing in ${Thread.currentThread().name}")
+        delay(1000)
+        return "Hello"
+    }
+
+    suspend fun doNetworkCall2(): String {
+        println("Netwrok call 2 executing in ${Thread.currentThread().name}")
+        delay(1000)
+        return "World"
     }
 
     /***********************************************************************************************
@@ -245,16 +359,6 @@ class MainActivity : ComponentActivity() {
     }
 
 
-}
-
-suspend fun doNetworkCall(): String {
-    delay(3000)
-    return "Completed Network Call 1"
-}
-
-suspend fun doNetworkCall2(): String {
-    delay(3000)
-    return "Completed Network Call 2"
 }
 
 @Composable
